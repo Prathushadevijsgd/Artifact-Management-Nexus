@@ -1,0 +1,210 @@
+**Install Nexus**
+
+https://help.sonatype.com/en/download.html
+
+https://download.sonatype.com/nexus/3/nexus-3.74.0-05-java17-mac.tgz
+
+Click the download link to get the .tar.gz file and Extract the archive.
+
+./bin/nexus run
+
+We can access nexus from http://localhost:8081
+
+**Configure admin user**
+
+When we first access Nexus, it will prompt you to log in. The default admin credentials are:
+
+Username: admin
+
+Password  : To find the default password for the admin user, navigate to the following file 
+
+nexus/sonatype-work/nexus3/admin.password
+
+After logging in, we can change the default password for security purposes.
+
+**Configure proxy repo**
+For Maven: Create setting.xml, maven should use it as mirror
+
+create settings.xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+    <servers> 
+        <!-- Nexus server credentials for release artifacts --> 
+        <server> 
+            <id>nexus-releases</id> 
+            <username>admin</username> 
+            <password>admin@123</password> 
+        </server> 
+         
+        <!-- Nexus server credentials for snapshot artifacts --> 
+        <server> 
+            <id>nexus-snapshots</id> 
+            <username>admin</username> 
+            <password>admin@123</password> 
+        </server> 
+    </servers> 
+
+    <mirrors> 
+        <mirror> 
+            <!-- This sends everything else to /public --> 
+            <id>nexus</id> 
+            <mirrorOf>*</mirrorOf> 
+            <url>http://localhost:8081/repository/maven-public/</url> 
+        </mirror> 
+    </mirrors> 
+
+    <profiles> 
+        <profile> 
+            <id>nexus</id> 
+            <!-- Enable snapshots for the built-in central repo to direct -->
+            <!-- all requests to nexus via the mirror --> 
+            <repositories> 
+                <repository> 
+                    <id>central</id> 
+                    <url>http://central</url> 
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases> 
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots> 
+                </repository> 
+            </repositories> 
+
+            <pluginRepositories> 
+                <pluginRepository> 
+                    <id>central</id> 
+                    <url>http://central</url> 
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases> 
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots> 
+                </pluginRepository> 
+            </pluginRepositories> 
+        </profile> 
+    </profiles> 
+
+    <activeProfiles> 
+        <!-- Make the profile active all the time --> 
+        <activeProfile>nexus</activeProfile> 
+    </activeProfiles>
+</settings>
+
+
+Go to the repository manager user interface.
+Click Administration in the left navigational menu, then click Repositories.
+Click Create repository and choose the maven2 (proxy) recipe from the list.
+Add the following text in the required fields:
+Name: maven-proxy
+Remote storage URL: https://repo1.maven.org/maven2
+Click Create repository to complete the form.
+
+Create pom.xml
+pom.xml
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>nexus-proxy</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <dependencies>
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <version>7.7.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>4.7.0</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>
+
+
+Run the Maven build with the command mvn package
+
+**Upload spring-petclinic Artifact to Nexus**
+For Maven: Use the deploy plugin in your pom.xml. You should be able to upload your artifacts to Nexus using Maven.
+
+Add Nexus Repository Configuration in pom.xml:
+You need to configure the Nexus repository in the pom.xml file using the <distributionManagement> section, which specifies the URL of the Nexus repository
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0     http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>spring-petclinic</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>  <!-- Use war if it's a web app -->
+
+    <!-- Repository configuration -->
+    <distributionManagement>
+        <repository>
+            <id>nexus-releases</id>
+            <url>http://your-nexus-repository-url/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>nexus-snapshots</id>
+            <url>http://your-nexus-repository-url/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.0.0-M1</version>
+                <executions>
+                    <execution>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>deploy</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- Optionally configure repositories for the dependencies -->
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+</project>
+
+Configure Nexus Repository Credentials:
+In order to upload the artifact,we need to configure your Nexus credentials. It's recommended to store our credentials in the settings.xml file for security purposes.
+Add the Nexus credentials in the settings.xml :
+<servers>
+    <server>
+        <id>nexus-releases</id>
+        <username>username</username>
+        <password>password</password>
+    </server>
+    <server>
+        <id>nexus-snapshots</id>
+        <username>username</username>
+        <password>password</password>
+    </server>
+</servers>
+Once the pom.xml and settings.xml are configured,we can deploy the artifact using the following Maven command:
+mvn clean deploy
+Maven will execute the build, package the artifact (e.g., JAR or WAR), and upload it to the Nexus repository.
+
+After running the mvn clean deploy command, we can check the Nexus repository to confirm that the artifact has been uploaded. If it's a release version, it should be in the releases repository, and if it's a snapshot version (e.g., 1.0-SNAPSHOT), it will be in the snapshots repository.
